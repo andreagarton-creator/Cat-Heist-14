@@ -1,5 +1,56 @@
-class MultiScene extends Phaser.Scene{setupPlayer(start,solids){this.remotes=new Map();this.cat=new CatPlayer(this,start.x,start.y,Session.local);solids.forEach(p=>this.physics.add.collider(this.cat.root,p));this.keys=this.input.keyboard.createCursorKeys();this.keys.space=this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);Net.onRoom(r=>this.syncRemote(r));this.lastSend=0}syncRemote(r){const ids=new Set(r.players.filter(p=>p.connected&&p.id!==Net.id).map(p=>p.id));for(const [id,x] of this.remotes)if(!ids.has(id)){x.destroy();this.remotes.delete(id)}for(const p of r.players)if(p.id!==Net.id&&p.connected&&!this.remotes.has(p.id))this.remotes.set(p.id,new RemoteCat(this,p))}multiUpdate(t){this.cat.update(this.keys,t,true);if(t-this.lastSend>50){const b=this.cat.root.body,pose=!(b.blocked.down||b.touching.down)?'leap':Math.abs(b.velocity.x)>18?'run':'idle';Net.state({x:this.cat.root.x,y:this.cat.root.y,facing:this.cat.facing,pose});this.lastSend=t}for(const [id,r] of this.remotes)r.update(t,Net.remote.get(id))}}
-window.LobbyScene=class extends MultiScene{constructor(){super('Lobby')}preload(){this.load.image('lobby','assets/lobby.jpg')}create(){this.add.image(960,540,'lobby');const p=[G.platform(this,960,1015,1920,110),G.platform(this,18,540,36,1080),G.platform(this,1902,540,36,1080)];this.setupPlayer({x:960,y:-80},p);if(Session.isHost)G.button(this,245,595,190,'START GAME',()=>Net.scene('Intro1'));G.button(this,245,665,190,'QUIT',()=>location.reload());this.add.text(1640,80,'ROOM '+Net.room.code+'\n'+Net.room.players.map(p=>'• '+p.name).join('\n'),{fontFamily:G.font,fontSize:'20px',color:'#fff',backgroundColor:'#0009',padding:{x:12,y:10}})}update(t){this.multiUpdate(t)}};
+class MultiScene extends Phaser.Scene{
+  setupPlayer(start,solids){
+    this.remotes=new Map();
+    this.cat=new CatPlayer(this,start.x,start.y,Session.local);
+    solids.forEach(p=>this.physics.add.collider(this.cat.root,p));
+    this.keys=this.input.keyboard.createCursorKeys();
+    this.keys.space=this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.roomHandler=r=>this.syncRemote(r);
+    Net.onRoom(this.roomHandler);
+    this.events.once('shutdown',()=>{this.remotes.forEach(r=>r.destroy());this.remotes.clear()});
+    this.lastSend=0;
+  }
+  syncRemote(room){
+    const active=room.players.filter(p=>p.connected&&p.id!==Net.id&&p.color!==null);
+    const ids=new Set(active.map(p=>p.id));
+    for(const [id,remote] of this.remotes){if(!ids.has(id)){remote.destroy();this.remotes.delete(id)}}
+    for(const player of active){
+      let remote=this.remotes.get(player.id);
+      if(!remote){remote=new RemoteCat(this,player);this.remotes.set(player.id,remote)}
+      remote.data=player;
+      remote.cat.data=player;
+    }
+  }
+  multiUpdate(t){
+    this.cat.update(this.keys,t,true);
+    if(t-this.lastSend>50){
+      const b=this.cat.root.body;
+      const pose=!(b.blocked.down||b.touching.down)?'leap':Math.abs(b.velocity.x)>18?'run':'idle';
+      Net.state({x:this.cat.root.x,y:this.cat.root.y,facing:this.cat.facing,pose});
+      this.lastSend=t;
+    }
+    for(const [id,remote] of this.remotes){
+      const latest=Net.remote.get(id);
+      if(latest)remote.update(t,latest);
+      else remote.cat.draw(t,false,remote.data.pose||'idle');
+    }
+  }
+}
+window.LobbyScene=class extends MultiScene{
+  constructor(){super('Lobby')}
+  preload(){this.load.image('lobby','assets/lobby.jpg')}
+  create(){
+    this.add.image(960,540,'lobby');
+    const solids=[G.platform(this,960,1015,1920,110),G.platform(this,18,540,36,1080),G.platform(this,1902,540,36,1080)];
+    this.setupPlayer({x:960,y:-80},solids);
+    if(Session.isHost)G.button(this,245,595,190,'START GAME',()=>Net.scene('Intro1'));
+    G.button(this,245,665,190,'QUIT',()=>location.reload());
+    this.roster=this.add.text(1640,80,'',{fontFamily:G.font,fontSize:'20px',color:'#fff',backgroundColor:'#0009',padding:{x:12,y:10}}).setDepth(910);
+    this.rosterHandler=room=>this.roster.setText('ROOM '+room.code+'\n'+room.players.filter(p=>p.connected).map(p=>'• '+p.name).join('\n'));
+    Net.onRoom(this.rosterHandler);
+  }
+  update(t){this.multiUpdate(t)}
+};
 window.StoryScene=class extends Phaser.Scene{constructor(key,img,next){super(key);this.img=img;this.next=next}preload(){this.load.image(this.img,'assets/'+this.img+'.jpg')}create(){this.add.image(960,540,this.img);if(Session.isHost)this.add.rectangle(1745,970,250,110,0xffffff,.001).setInteractive().on('pointerdown',()=>Net.scene(this.next))}};
 window.MapScene=class extends Phaser.Scene{constructor(){super('Map')}preload(){this.load.image('map','assets/map.jpg')}create(){this.add.image(960,540,'map');if(Session.isHost)[[270,642,392,90,'Warehouse'],[1030,264,330,90,'Dock'],[1618,764,390,90,'Rooftops']].forEach(a=>this.add.rectangle(...a.slice(0,4),0xffffff,.001).setInteractive().on('pointerdown',()=>Net.scene(a[4])))}};
 window.WarehouseScene=class extends MultiScene{constructor(){super('Warehouse')}preload(){this.load.image('wh','assets/warehouse.jpg')}create(){this.add.image(960,540,'wh');const p=[G.platform(this,960,1040,1920,70),G.platform(this,15,540,30,1080),G.platform(this,1905,540,30,1080),G.platform(this,670,340,1145,48),G.platform(this,286,575,370,32),G.platform(this,1628,433,355,38),G.platform(this,1630,714,372,38),G.platform(this,716,812,96,78),G.platform(this,812,812,96,78),G.platform(this,764,733,96,80),G.platform(this,1198,995,104,96),G.platform(this,1302,995,104,96),G.platform(this,1198,899,104,96),G.platform(this,1302,899,104,96),G.platform(this,1250,803,104,96)];this.setupPlayer({x:120,y:940},p);this.chest=G.zone(this,1027,288,130,95);this.physics.add.overlap(this.cat.root,this.chest,async()=>{if(Session.local.hasCostume)return;await Net.objective('costume');G.achievement(this,'PUFFIN DISGUISE ACQUIRED')});G.hud(this,'WAREHOUSE OF DISGUISES','Warehouse')}update(t){this.multiUpdate(t)}};

@@ -1,0 +1,1 @@
+{"name":"cat-heist-v14-multiplayer","version":"14.0.0","private":true,"main":"server.js","scripts":{"start":"node server.js","check":"node --check server.js && node --check public/js/network.js && node --check public/js/main.js"},"engines":{"node":">=18"},"dependencies":{"express":"^4.21.2","socket.io":"^4.8.1"}}

@@ -1,0 +1,1 @@
+window.Session={get isHost(){return Net.room?.hostId===Net.id},get local(){return Net.room?.players.find(p=>p.id===Net.id)||{id:Net.id,name:'Cat',color:0x000000,hasCostume:false,hasFish:false,depositedFish:false}},get players(){return Net.room?.players||[]}};

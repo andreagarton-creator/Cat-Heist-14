@@ -1,0 +1,43 @@
+const I1 = class extends StoryScene {
+  constructor() { super('Intro1', 'intro1', 'Intro2'); }
+};
+const I2 = class extends StoryScene {
+  constructor() { super('Intro2', 'intro2', 'Intro3'); }
+};
+const I3 = class extends StoryScene {
+  constructor() { super('Intro3', 'intro3', 'Map'); }
+};
+const O1 = class extends StoryScene {
+  constructor() { super('Outro1', 'outro1', 'Outro2'); }
+};
+const O2 = class extends StoryScene {
+  constructor() { super('Outro2', 'outro2', 'Lobby'); }
+};
+
+window.game = new Phaser.Game({
+  type: Phaser.AUTO,
+  parent: 'game',
+  width: 1920,
+  height: 1080,
+  physics: {
+    default: 'arcade',
+    arcade: {
+      gravity: { y: 1500 },
+      debug: false
+    }
+  },
+  scene: [
+    TitleScene,
+    CatChooseScene,
+    LobbyScene,
+    I1,
+    I2,
+    I3,
+    MapScene,
+    WarehouseScene,
+    DockScene,
+    RooftopsScene,
+    O1,
+    O2
+  ]
+});

@@ -6,12 +6,98 @@ window.G={
     r.on('pointerdown',fn);return r;
   },
   hud(s,name,level){
-    s.add.rectangle(960,47,1920,94,0x000000,.92).setDepth(880);
-    s.add.text(25,16,name,{fontFamily:G.font,fontSize:'28px',fontStyle:'700',color:'#fff'}).setDepth(881);
-    G.button(s,1460,46,175,'RETURN TO MAP',()=>Session.isHost?Net.scene('Map'):Net.msg('Only the host changes scenes.'));
-    G.button(s,1650,46,155,'RESTART',()=>s.scene.restart());
-    if(Session.isHost)G.button(s,1815,46,150,'SKIP',()=>Net.skip(level));
-  },
+
+    s.add
+        .rectangle(
+            960,
+            47,
+            1920,
+            94,
+            0x000000,
+            .92
+        )
+        .setDepth(880);
+
+    s.add
+        .text(
+            25,
+            16,
+            name,
+            {
+                fontFamily:G.font,
+                fontSize:'28px',
+                fontStyle:'700',
+                color:'#fff'
+            }
+        )
+        .setDepth(881);
+
+    G.button(
+        s,
+        1460,
+        46,
+        175,
+        'RETURN TO MAP',
+        async()=>{
+            if(!Session.isHost){
+                Net.msg('Only the host changes scenes.');
+                return;
+            }
+
+            const response =
+                await Net.scene('Map');
+
+            if(!response || !response.ok){
+                Net.msg(
+                    response?.message ||
+                    'Could not return to the map.'
+                );
+                return;
+            }
+
+            /*
+             * Normally the server broadcast performs this.
+             * This is a safe host-side fallback.
+             */
+            if(s.scene.isActive()){
+                s.scene.start('Map');
+            }
+        }
+    );
+
+    G.button(
+        s,
+        1650,
+        46,
+        155,
+        'RESTART',
+        ()=>s.scene.restart()
+    );
+
+    if(Session.isHost){
+        G.button(
+            s,
+            1815,
+            46,
+            150,
+            'SKIP',
+            async()=>{
+                const response =
+                    await Net.skip(level);
+
+                if(!response || !response.ok){
+                    Net.msg(
+                        response?.message ||
+                        'Could not skip the objective.'
+                    );
+                    return;
+                }
+
+                Net.msg('Objective skipped.');
+            }
+        );
+    }
+}
   achievement(s,t){
     s.add.text(960,155,t,{fontFamily:G.font,fontSize:'34px',fontStyle:'800',color:'#fff',backgroundColor:'rgba(0,0,0,.82)',padding:{x:24,y:13}}).setOrigin(.5).setDepth(890);
   },

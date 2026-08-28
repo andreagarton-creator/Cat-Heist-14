@@ -41,6 +41,58 @@ socket.on('drop-chest',(_,ack=()=>{})=>{
 });
 
  socket.on('objective',({type},ack=()=>{})=>{const q=get(socket);if(!q)return ack({ok:false});if(type==='costume'){q.p.hasCostume=true;if([...q.r.players.values()].every(p=>p.hasCostume))q.r.world.Warehouse=true}if(type==='fish'){q.p.hasFish=true;if([...q.r.players.values()].every(p=>p.hasFish))q.r.world.Dock=true}if(type==='deposit'){q.p.hasFish=false;q.p.depositedFish=true;if([...q.r.players.values()].every(p=>p.depositedFish)){q.r.world.Rooftops=true;q.r.scene='Outro1';io.to(q.r.code).emit('scene-change',{scene:'Outro1'})}}send(q.r);ack({ok:true})});
- socket.on('skip-objective',({level},ack=()=>{})=>{const q=get(socket);if(!q||q.r.hostId!==q.p.id)return ack({ok:false});for(const p of q.r.players.values()){if(level==='Warehouse')p.hasCostume=true;if(level==='Dock'){p.hasCostume=true;p.hasFish=true}if(level==='Rooftops'){p.hasFish=false;p.depositedFish=true}}q.r.world[level]=true;if(level==='Rooftops'){q.r.scene='Outro1';io.to(q.r.code).emit('scene-change',{scene:'Outro1'})}send(q.r);ack({ok:true})});
+socket.on(
+    'skip-objective',
+    ({level},ack=()=>{})=>{
+
+        const q=get(socket);
+
+        if(!q){
+            return ack({
+                ok:false,
+                message:'Room unavailable.'
+            });
+        }
+
+        if(q.r.hostId!==q.p.id){
+            return ack({
+                ok:false,
+                message:'Host only.'
+            });
+        }
+
+        for(const p of q.r.players.values()){
+
+            if(level==='Warehouse'){
+                p.hasCostume=true;
+            }
+
+            if(level==='Dock'){
+                p.hasCostume=true;
+                p.hasFish=true;
+            }
+
+            if(level==='Rooftops'){
+                p.hasFish=false;
+                p.depositedFish=true;
+            }
+        }
+
+        q.r.world[level]=true;
+
+        if(level==='Rooftops'){
+            q.r.scene='Outro1';
+
+            io.to(q.r.code).emit(
+                'scene-change',
+                {scene:'Outro1'}
+            );
+        }
+
+        send(q.r);
+
+        ack({ok:true});
+    }
+);
  socket.on('disconnect',()=>{const q=get(socket);if(!q)return;q.p.connected=false;if(q.r.hostId===q.p.id){const n=[...q.r.players.values()].find(p=>p.connected);if(n)q.r.hostId=n.id}send(q.r);setTimeout(()=>{if(![...q.r.players.values()].some(p=>p.connected))rooms.delete(q.r.code)},300000)})
 });server.listen(PORT,()=>console.log('The Purrfect Heist v14 on '+PORT));
